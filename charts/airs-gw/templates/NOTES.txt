@@ -1,0 +1,38 @@
+AIRS Gateway has been deployed successfully.
+
+{{- if .Values.ingress.enabled }}
+
+Gateway URL:
+  https://{{ .Values.ingress.hostname }}{{ if not .Values.ingress.hostBased }}{{ .Values.ingress.gatewayPath | default "/" }}{{ end }}
+
+{{- if and .Values.ingress.hostBased (include "mcp.enabled" .) }}
+MCP URL:
+  https://{{ .Values.ingress.mcpHostname | default (printf "mcp.%s" .Values.ingress.hostname) }}/
+{{- else if and (not .Values.ingress.hostBased) (include "mcp.enabled" .) }}
+MCP URL:
+  https://{{ .Values.ingress.hostname }}{{ .Values.ingress.mcpPath | default "/mcp" }}
+{{- end }}
+
+{{- else if eq .Values.service.type "LoadBalancer" }}
+
+Gateway is exposed via a LoadBalancer service. It may take a few minutes for the external IP to be assigned.
+
+  kubectl get svc --namespace {{ .Release.Namespace }} {{ include "airsgateway.fullname" . }} \
+    -w -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+
+Once assigned:
+  http://<EXTERNAL-IP>:{{ .Values.service.port }}/v1/health
+
+{{- else }}
+
+Gateway is not exposed externally. To access it locally:
+
+  kubectl port-forward --namespace {{ .Release.Namespace }} \
+    svc/{{ include "airsgateway.fullname" . }} \
+    {{ .Values.service.port }}:{{ .Values.service.port }}
+
+  http://127.0.0.1:{{ .Values.service.port }}/v1/health
+
+To expose externally, set service.type=LoadBalancer or ingress.enabled=true with ingress.hostname.
+{{- end }}
+

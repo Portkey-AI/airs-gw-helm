@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resource-config
+  labels:
+    {{- include "airsgateway.labels" . | nindent 4 }}
+data:
+  document_db.pem: |
+    -----BEGIN CERTIFICATE-----
+    ____
+    -----END CERTIFICATE-----

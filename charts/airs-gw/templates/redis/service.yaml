@@ -1,0 +1,24 @@
+{{- if eq (include "redis.deploy" .) "true" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.redis.name | default "redis" }}
+  labels:
+    {{- include "redis.labels" . | nindent 4 }}
+    {{- with .Values.redis.service.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    {{- with .Values.redis.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.redis.service.type | default "ClusterIP" }}
+  ports:
+    - port: {{ .Values.redis.service.port | default 6379 }}
+      targetPort: redis
+      protocol: TCP
+      name: redis
+  selector:
+    {{- include "redis.selectorLabels" . | nindent 4 }}
+{{- end }}

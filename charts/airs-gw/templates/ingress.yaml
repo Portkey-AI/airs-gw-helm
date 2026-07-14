@@ -1,0 +1,71 @@
+{{- if .Values.ingress.enabled }}
+{{- if and (ne (include "gateway.enabled" .) "true") (ne (include "mcp.enabled" .) "true") }}
+{{- fail "ingress.enabled is true but neither the gateway nor the MCP server is enabled. Set environment.data.SERVER_MODE to \"all\", \"\" (gateway), or \"mcp\"." }}
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "airsgateway.fullname" . }}
+  labels:
+    {{- include "gateway.labels" . | nindent 4 }}
+  annotations:
+    {{- include "airsgateway.annotations" . | nindent 4 }}
+    {{- with .Values.ingress.annotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.ingressClassName }}
+  rules:
+    {{- if .Values.ingress.hostBased }}
+    {{- if eq (include "gateway.enabled" .) "true" }}
+    - host: {{ .Values.ingress.hostname }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "airsgateway.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+    {{- end }}
+    {{- if eq (include "mcp.enabled" .) "true" }}
+    - host: {{ .Values.ingress.mcpHostname | default (printf "mcp.%s" .Values.ingress.hostname) }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "airsgateway.fullname" . }}
+                port:
+                  number: {{ include "mcp.containerPort" . }}
+    {{- end }}
+    {{- else }}
+    - host: {{ .Values.ingress.hostname }}
+      http:
+        paths:
+          {{- if eq (include "mcp.enabled" .) "true" }}
+          - path: {{ .Values.ingress.mcpPath | default "/mcp" }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "airsgateway.fullname" . }}
+                port:
+                  number: {{ include "mcp.containerPort" . }}
+          {{- end }}
+          {{- if eq (include "gateway.enabled" .) "true" }}
+          - path: {{ .Values.ingress.gatewayPath | default "/" }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "airsgateway.fullname" . }}
+                port:
+                  number: {{ .Values.service.port }}
+          {{- end }}
+    {{- end }}
+  {{- if .Values.ingress.tls }}
+  tls:
+    {{- toYaml .Values.ingress.tls | nindent 4 }}
+  {{- end }}
+{{- end }} 

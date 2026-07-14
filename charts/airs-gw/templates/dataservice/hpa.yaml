@@ -1,0 +1,51 @@
+{{- if and .Values.dataservice.enabled .Values.dataservice.autoscaling.enabled .Values.dataservice.autoscaling.createHpa }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "airsgateway.fullname" . }}-{{ .Values.dataservice.name }}
+  labels:
+    {{- include "dataservice.labels" . | nindent 4 }}
+    {{- with .Values.dataservice.deployment.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "airsgateway.fullname" . }}-{{ .Values.dataservice.name }}
+  minReplicas: {{ .Values.dataservice.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.dataservice.autoscaling.maxReplicas }}
+  metrics:
+    {{- if .Values.dataservice.autoscaling.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.dataservice.autoscaling.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if .Values.dataservice.autoscaling.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.dataservice.autoscaling.targetMemoryUtilizationPercentage }}
+    {{- end }}
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: {{ .Values.dataservice.autoscaling.behavior.scaleUp.stabilizationWindowSeconds | default 0 }}
+      policies:
+      - type: Pods
+        value: {{ .Values.dataservice.autoscaling.behavior.scaleUp.podScaleUpValue | default 4 }}
+        periodSeconds: {{ .Values.dataservice.autoscaling.behavior.scaleUp.periodSeconds | default 15 }}
+      - type: Percent
+        value: {{ .Values.dataservice.autoscaling.behavior.scaleUp.percentScaleUpValue | default 100 }}
+        periodSeconds: {{ .Values.dataservice.autoscaling.behavior.scaleUp.periodSeconds | default 15 }}
+    scaleDown:
+      stabilizationWindowSeconds: {{ .Values.dataservice.autoscaling.behavior.scaleDown.stabilizationWindowSeconds | default 300 }}
+      policies:
+      - type: Pods
+        value: {{ .Values.dataservice.autoscaling.behavior.scaleDown.podScaleDownValue | default 1 }}
+        periodSeconds: {{ .Values.dataservice.autoscaling.behavior.scaleDown.periodSeconds | default 60 }}
+{{- end }}

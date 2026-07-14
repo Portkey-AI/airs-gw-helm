@@ -1,0 +1,8 @@
+apiVersion: v2
+name: airs-gw
+description: Helm chart to deploy the AIRS Gateway application in a hybrid cloud environment.
+type: application
+version: "1.0.0"
+appVersion: "2.11.1"
+annotations:
+  "artifacthub.io/license": Apache-2.0

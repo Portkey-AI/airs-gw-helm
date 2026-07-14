@@ -1,0 +1,654 @@
+# Default values for airsgateway.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+# -- Number of old ReplicaSets to retain to allow rollback. Defaults to 10.
+revisionHistoryLimit: 10
+
+# Deployment strategy configuration
+# Example:
+# strategy:
+#   type: RollingUpdate
+#   rollingUpdate:
+#     maxSurge: 1
+#     maxUnavailable: 0
+strategy: {}
+
+images:
+  gatewayImage:
+    repository: "registry.portkey.ai/airsgw/gateway_enterprise"
+    pullPolicy: Always
+    tag: "2.11.1"
+  # Optional: Dataservice image
+  dataserviceImage:
+    repository: "registry.portkey.ai/airsgw/data-service"
+    pullPolicy: Always
+    tag: "1.8.0"
+  # Optional: Redis image
+  redisImage:
+    repository: "docker.io/redis"
+    pullPolicy: IfNotPresent
+    tag: "7.2-alpine"
+  # Optional: MinIO image
+  minioImage:
+    repository: "docker.io/minio/minio"
+    pullPolicy: IfNotPresent
+    tag: "RELEASE.2025-09-07T16-13-09Z"
+  # Optional: MinIO client image
+  minioClientImage:
+    repository: "quay.io/minio/mc"
+    pullPolicy: IfNotPresent
+    tag: "RELEASE.2025-08-13T08-35-41Z"
+  # Optional: etcd image
+  etcdImage:
+    repository: "quay.io/coreos/etcd"
+    pullPolicy: IfNotPresent
+    tag: "v3.5.5"
+  # Optional: Milvus image
+  milvusImage:
+    repository: "docker.io/milvusdb/milvus"
+    pullPolicy: IfNotPresent
+    tag: "v2.3.21"
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Labels added to every resource created by this chart.
+# Example:
+# commonLabels:
+#   environment: production
+#   team: platform
+commonLabels: {}
+
+selectorLabels: {}
+
+# Existing image pull secrets (object or string form).
+# imagePullSecrets:
+#   - name: airsgatewayregistrycredentials
+#   - my-other-secret
+imagePullSecrets: []
+
+# Create image pull secrets from credentials.
+# imageCredentials:
+# - name: airsgatewayregistrycredentials
+#   create: true
+#   registry: https://registry.portkey.ai
+#   username: ""
+#   password: ""
+#   email: ""
+#   auth: ""  # Base64 auth token (alternative to username/password)
+imageCredentials: []
+
+useVaultInjection: false  # Set this to true to use Vault injection
+
+vaultConfig:
+  vaultHost: vault.hashicorp.com
+  secretPath: "path/to/your/secret"
+  role: "your-vault-role"
+  kubernetesSecret: ""
+
+environment:
+  # Specify whether environment configuration should be deployed
+  create: true
+  # Specify whether environment configuration should be deployed as a Secret or a ConfigMap
+  secret: true
+  
+  # Use an existing Secret for sensitive values (when create is false)
+  existingSecret: ""
+  
+  # When secretKeys is provided (recommended):
+  #   - Keys listed here are pulled from the external secret
+  #   - Other keys in environment.data are used as direct values
+  #   - Clear separation of sensitive vs non-sensitive configuration
+  # 
+  # When secretKeys is empty :
+  #   - Uses Kubernetes lookup to check if keys exist in secret
+  #   - Falls back to environment.data values if keys not found
+  secretKeys: []
+  #  - REDIS_URL
+  #  - LOG_STORE_ACCESS_KEY
+  #  - LOG_STORE_SECRET_KEY
+  #  - ANALYTICS_STORE_PASSWORD
+  #  - AZURE_STORAGE_KEY
+  #  - AWS_ASSUME_ROLE_ACCESS_KEY_ID
+  #  - AWS_ASSUME_ROLE_SECRET_ACCESS_KEY
+  
+  # Application environment variables
+  # When using existingSecret with explicit mode:
+  #   - Keys listed in secretKeys come from the external secret
+  #   - All other keys come from this data section as direct values
+  data:
+    SERVICE_NAME: airsgateway
+    PORT: "8787"
+    LOG_STORE: control_plane
+    ANALYTICS_STORE: control_plane
+    # Minimum supported Redis version: 6.2
+    # Bundled Redis is used when CACHE_STORE is "redis". See docs/Redis.md for managed Redis.
+    CACHE_STORE: redis
+    REDIS_URL: redis://redis:6379
+    REDIS_TLS_ENABLED: "false"
+    LOG_STORE_FILE_PATH_FORMAT: "v2"
+    REDIS_MODE: 
+    PORTKEY_CLIENT_AUTH: 
+    ORGANISATIONS_TO_SYNC: 
+    SERVER_MODE: "all"
+    MCP_PORT: "8788"
+    MCP_GATEWAY_BASE_URL:
+
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  # Required when create is false. When create is true and name is empty, a name is generated.
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+
+service:
+  type: ClusterIP
+  port: 8787
+  containerPort:
+  additionalLabels: {}
+  annotations: {}
+
+mcpService:
+  enabled: false
+  type: ClusterIP
+  port: 80
+  containerPort:
+  additionalLabels: {}
+  annotations: {}
+
+ingress:
+  enabled: false
+  hostname: ""
+  ingressClassName: "nginx"
+  annotations: {}
+  labels: {}
+  tls: []
+  # Set to true for host-based routing (separate hostnames for gateway and MCP)
+  # Set to false for path-based routing (same hostname, different paths)
+  hostBased: false
+  # MCP hostname (only used when hostBased is true)
+  # Defaults to "mcp.{hostname}" if not specified
+  mcpHostname: ""
+  # MCP path (only used when hostBased is false)
+  # Defaults to "/mcp" if not specified
+  mcpPath: "/mcp"
+  # Gateway path (only used when hostBased is false)
+  # Defaults to "/" if not specified
+  gatewayPath: "/"
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# startupProbe is optional and rendered only when defined.
+# Useful for slow-starting containers to avoid premature liveness kills.
+# When httpGet.port is omitted, it defaults to the active server port:
+# the gateway port (PORT) in gateway/all mode, or the MCP port (MCP_PORT) in mcp mode.
+# Example:
+# startupProbe:
+#   httpGet:
+#     path: /v1/health
+#     # port omitted -> auto-selected based on SERVER_MODE
+#   initialDelaySeconds: 10
+#   periodSeconds: 5
+#   failureThreshold: 30
+
+# For httpGet probes, omit httpGet.port to auto-target the active server port
+# (gateway port in gateway/all mode, MCP port in mcp mode). Set it explicitly to override.
+livenessProbe:
+  httpGet:
+    path: /v1/health
+  initialDelaySeconds: 5
+  periodSeconds: 60
+  timeoutSeconds: 3
+  failureThreshold: 3
+readinessProbe:
+  httpGet:
+    path: /v1/health
+  initialDelaySeconds: 5
+  periodSeconds: 60
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 60
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      podScaleUpValue: 2
+      percentScaleUpValue: 100
+      periodSeconds: 2
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      podScaleDownValue: 1
+      periodSeconds: 60
+
+pdb:
+  enabled: false
+  # minAvailable and maxUnavailable are mutually exclusive; set only one.
+  minAvailable: 1
+  maxUnavailable: ""
+
+# Additional volumes on the output Deployment definition.
+volumes: []
+# - name: shared-folder
+#   configMap:
+#     name: resource-config
+
+# Additional volumeMounts on the output Deployment definition.
+volumeMounts: []
+# - name: shared-folder
+#   mountPath: /etc/shared/document_db.pem
+#   subPath: document_db.pem
+
+extraContainerConfig: {}
+
+# envFrom allows loading all keys from secrets/configmaps as environment variables.
+# Useful for external secret managers (ESO, Vault CSI, AWS Secrets Manager).
+# Variables in env (from environment.data) take precedence over envFrom.
+envFrom: []
+
+# Additional environment variables appended after commonEnv.
+extraEnv: []
+
+# Additional sidecar containers injected into the gateway pod.
+# Each entry is a full Kubernetes container spec.
+# Example: nginx TLS-termination sidecar
+# sidecars:
+#   - name: nginx-tls
+#     image: nginx:1.27-alpine
+#     ports:
+#       - containerPort: 443
+#     volumeMounts:
+#       - name: tls-certs
+#         mountPath: /etc/tls
+#         readOnly: true
+#       - name: nginx-config
+#         mountPath: /etc/nginx/conf.d
+#         readOnly: true
+#     resources:
+#       requests:
+#         cpu: 50m
+#         memory: 64Mi
+#       limits:
+#         cpu: 200m
+#         memory: 128Mi
+sidecars: []
+
+topologySpreadConstraints: []
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Pod-level hostAlias configuration
+# Example:
+# hostAlias:
+#   - ip: "192.168.1.100"
+#     hostnames:
+#       - "example.com"
+#       - "www.example.com"
+hostAlias: []
+
+# DNS policy for the gateway pod.
+# Valid values: ClusterFirst (default), ClusterFirstWithHostNet, Default, None
+# NOTE: When set to "None", dnsConfig must be provided with at least one nameserver.
+dnsPolicy: ""
+
+# Custom DNS configuration for the gateway pod.
+# Required when dnsPolicy is "None" (must include at least one nameserver).
+# Example:
+# dnsConfig:
+#   nameservers:
+#     - 1.2.3.4
+#   searches:
+#     - ns1.svc.cluster.local
+#   options:
+#     - name: ndots
+#       value: "5"
+dnsConfig: {}
+
+# Restart pods on each upgrade by injecting a random annotation.
+autoRestart: false
+
+# Pod termination grace period in seconds.
+# terminationGracePeriodSeconds: 30
+terminationGracePeriodSeconds:
+
+
+dataservice:
+  name: "dataservice"
+  enabled: false
+  containerPort: 8081
+  finetuneBucket: ""
+  logexportsBucket: ""
+  envFrom: []
+  env:
+    DEBUG_ENABLED: false
+    SERVICE_NAME: "airsgateway-dataservice"
+  deployment:
+    autoRestart: true
+    replicas: 1
+    # -- Number of old ReplicaSets to retain to allow rollback. Defaults to 10.
+    revisionHistoryLimit: 10
+    # terminationGracePeriodSeconds: 30
+    labels: {}
+    selectorLabels: {}
+    annotations: {}
+    podSecurityContext:
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    resources: {}
+    startupProbe:
+      httpGet:
+        path: /health
+      initialDelaySeconds: 60
+      failureThreshold: 3
+      periodSeconds: 10
+      timeoutSeconds: 1
+    livenessProbe:
+      httpGet:
+        path: /health
+      failureThreshold: 3
+      periodSeconds: 10
+      timeoutSeconds: 1
+    readinessProbe:
+      httpGet:
+        path: /health
+      failureThreshold: 3
+      periodSeconds: 10
+      timeoutSeconds: 1
+    extraEnv: []
+    extraContainerConfig: {}
+    topologySpreadConstraints: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    volumes: []
+    volumeMounts: []
+    # Pod-level hostAlias configuration for dataservice
+    # Example:
+    # hostAlias:
+    #   - ip: "192.168.1.100"
+    #     hostnames:
+    #       - "example.com"
+    #       - "www.example.com"
+    hostAlias: []
+    # DNS policy for the dataservice pod.
+    # Valid values: ClusterFirst (default), ClusterFirstWithHostNet, Default, None
+    # NOTE: When set to "None", dnsConfig must be provided with at least one nameserver.
+    dnsPolicy: ""
+    # Custom DNS configuration for the dataservice pod.
+    # Example:
+    # dnsConfig:
+    #   nameservers:
+    #     - 1.2.3.4
+    #   searches:
+    #     - ns1.svc.cluster.local
+    #   options:
+    #     - name: ndots
+    #       value: "5"
+    dnsConfig: {}
+  service:
+    type: ClusterIP
+    port: 8081
+    labels: {}
+    annotations: {}
+    loadBalancerSourceRanges: []
+    loadBalancerIP: ""
+  serviceAccount:
+    create: true
+    automount: false
+    # Required when create is false. When create is true and name is empty, a name is generated.
+    name: ""
+    labels: {}
+    annotations: {}
+  autoscaling:
+    enabled: false
+    createHpa: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+    behavior:
+      scaleUp:
+        stabilizationWindowSeconds: 0
+        podScaleUpValue: 2
+        percentScaleUpValue: 100
+        periodSeconds: 2
+      scaleDown:
+        stabilizationWindowSeconds: 300
+        podScaleDownValue: 1
+        periodSeconds: 60
+  pdb:
+    enabled: false
+    minAvailable: 1
+    maxUnavailable: ""
+
+# Redis configuration (minimum version: 6.2).
+# Deployed when enabled is true and environment.data.CACHE_STORE is "redis".
+redis:
+  enabled: true
+  name: "redis"
+  auth:
+    enabled: false
+    # When enabled, set create=true with password, or create=false with existingSecret.
+    create: true
+    existingSecret: ""
+    existingSecretPasswordKey: "redis-password"
+    # Required when enabled and create are both true.
+    password: ""
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClassName: ""
+    accessMode: ReadWriteOnce
+  config:
+    # Additional redis.conf lines.
+    # Example:
+    #   maxmemory 256mb
+    #   maxmemory-policy allkeys-lru
+    extra: ""
+  statefulSet:
+    revisionHistoryLimit: 10
+    labels: {}
+    annotations: {}
+    podAnnotations: {}
+    podLabels: {}
+    podSecurityContext:
+      fsGroup: 999
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 999
+      runAsGroup: 999
+      allowPrivilegeEscalation: false
+      # Keep false so Redis can write RDB/AOF under /data.
+      readOnlyRootFilesystem: false
+      capabilities:
+        drop:
+          - ALL
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    livenessProbe:
+      enabled: true
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    readinessProbe:
+      enabled: true
+      initialDelaySeconds: 5
+      periodSeconds: 5
+      timeoutSeconds: 3
+      failureThreshold: 3
+  service:
+    type: ClusterIP
+    port: 6379
+    labels: {}
+    annotations: {}
+
+# MinIO configuration
+minio:
+  name: "minio"
+  enabled: false
+  apiPort: 9000
+  consolePort: 9001
+  authKey:
+    create: true
+    existingSecret: ""
+    accessKey: ""
+    secretKey: ""
+  statefulSet:
+    # -- Number of old ControllerRevisions to retain to allow rollback. Defaults to 10.
+    revisionHistoryLimit: 10
+    labels: {}
+    annotations: {}
+    podSecurityContext:
+      fsGroup: 1000
+      seccompProfile:
+        type: RuntimeDefault
+    securityContext:
+      runAsNonRoot: true
+      runAsUser: 1000
+      runAsGroup: 1000
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+  service:
+    type: ClusterIP
+    labels: {}
+    annotations: {}
+  persistence:
+    enabled: true
+    size: 10Gi
+    storageClassName: ""
+    accessMode: ReadWriteOnce
+
+# Milvus configuration
+milvus:
+  enabled: false
+  etcd:
+    port: 2379
+    env:
+      autoCompactionMode: revision
+      autoCompactionRetention: "1000"
+      quotaBackendBytes: "4294967296"
+      snapshotCount: "50000"
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+    service:
+      serviceType: ClusterIP
+      labels: {}
+      annotations: {}
+    resources: {}
+    statefulSet:
+      # -- Number of old ControllerRevisions to retain to allow rollback. Defaults to 10.
+      revisionHistoryLimit: 10
+      labels: {}
+      annotations: {}
+      podSecurityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
+  milvus:
+    grpcPort: 19530
+    httpPort: 9091
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClassName: ""
+      accessMode: ReadWriteOnce
+    service:
+      serviceType: ClusterIP
+      labels: {}
+      annotations: {}
+    resources: {}
+    statefulSet:
+      # -- Number of old ControllerRevisions to retain to allow rollback. Defaults to 10.
+      revisionHistoryLimit: 10
+      labels: {}
+      annotations: {}
+      podSecurityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+      nodeSelector: {}
+      tolerations: []
+      affinity: {}
