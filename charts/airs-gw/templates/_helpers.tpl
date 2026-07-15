@@ -103,9 +103,15 @@ app.kubernetes.io/component: {{ include "airsgateway.fullname" . }}-{{ .Values.d
 Common annotations
 */}}
 {{- define "airsgateway.annotations" -}}
-{{- with .Values.service.annotations }}
-{{- toYaml .}}
+{{- if .Values.commonAnnotations }}
+{{ toYaml .Values.commonAnnotations }}
 {{- end }}
+helm.sh/chart: {{ include "airsgateway.chart" . }}
+{{ include "airsgateway.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
@@ -176,82 +182,49 @@ Supports both username/password and direct auth token
 {{- end }}
 
 {{/*
-Common labels
+Name of the secret containing the secrets for redis. This can be overridden by a secrets file created by
+the user or some other secret provisioning mechanism
 */}}
-{{- define "redis.labels" -}}
-helm.sh/chart: {{ include "airsgateway.chart" . }}
-{{ include "redis.selectorLabels" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- include "airsgateway.commonLabels" . }}
-{{- end }}
-
-{{/*
-Selector labels
-*/}}
-{{- define "redis.selectorLabels" -}}
-app.kubernetes.io/name: {{ .Values.redis.name | default "redis" }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/component: redis
-{{- end }}
-
-{{/*
-Whether the bundled Redis should be deployed.
-*/}}
-{{- define "redis.deploy" -}}
-{{- if and .Values.redis.enabled (eq .Values.environment.data.CACHE_STORE "redis") -}}
-true
-{{- end -}}
-{{- end }}
-
-{{/*
-Validate Redis auth configuration when the bundled Redis is deployed.
-*/}}
-{{- define "redis.validateAuth" -}}
-{{- if eq (include "redis.deploy" .) "true" }}
-{{- if .Values.redis.auth.enabled }}
-{{- if and .Values.redis.auth.create .Values.redis.auth.existingSecret }}
-{{- fail "redis.auth.create and redis.auth.existingSecret are mutually exclusive. Set create=true to have the chart create the Secret, or provide existingSecret (with create=false) to use your own." }}
-{{- end }}
-{{- if and (not .Values.redis.auth.create) (not .Values.redis.auth.existingSecret) }}
-{{- fail "No Redis credentials source configured. Set redis.auth.create=true (with password) to have the chart create the Secret, or set redis.auth.existingSecret to use an existing one." }}
-{{- end }}
-{{- if and .Values.redis.auth.create (not .Values.redis.auth.password) }}
-{{- fail "redis.auth.password must be set explicitly when redis.auth.enabled and redis.auth.create are true. Nothing is auto-generated." }}
-{{- end }}
-{{- end }}
+{{- define "airsgateway.redisSecretsName" -}}
+{{- if .Values.redis.external.existingSecretName }}
+{{- .Values.redis.external.existingSecretName }}
+{{- else }}
+{{- include "airsgateway.fullname" . }}-{{ .Values.redis.name }}
 {{- end }}
 {{- end }}
 
-{{/*
-Redis auth secret name.
-*/}}
-{{- define "redis.secretName" -}}
-{{- include "redis.validateAuth" . -}}
-{{- if .Values.redis.auth.existingSecret -}}
-{{- .Values.redis.auth.existingSecret -}}
+{{- define "redis.serviceAccountName" -}}
+{{- if .Values.redis.serviceAccount.create -}}
+    {{ default (printf "%s-%s" (include "airsgateway.fullname" .) .Values.redis.name) .Values.redis.serviceAccount.name | trunc 63 | trimSuffix "-" }}
 {{- else -}}
-{{ printf "%s-redis-auth" (include "airsgateway.fullname" .) }}
+    {{ default "default" .Values.redis.serviceAccount.name }}
 {{- end -}}
-{{- end }}
+{{- end -}}
 
 {{/*
-Inject REDIS_PASSWORD from the bundled Redis Secret when auth is enabled and
-the user has not already provided REDIS_PASSWORD in environment.data.
+Redis environment variables sourced from the redis secret (bundled or external).
 */}}
-{{- define "redis.passwordEnv" -}}
-{{- if and (eq (include "redis.deploy" .) "true") .Values.redis.auth.enabled -}}
-{{- $env := include "airsgateway.commonEnvMap" . | fromYaml -}}
-{{- if not (hasKey $env "REDIS_PASSWORD") }}
-- name: REDIS_PASSWORD
+{{- define "airsgateway.redisEnv" -}}
+- name: REDIS_URL
   valueFrom:
     secretKeyRef:
-      name: {{ include "redis.secretName" . }}
-      key: {{ .Values.redis.auth.existingSecretPasswordKey }}
-{{- end -}}
-{{- end -}}
+      name: {{ include "airsgateway.redisSecretsName" . }}
+      key: redis_connection_url
+- name: REDIS_TLS_ENABLED
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "airsgateway.redisSecretsName" . }}
+      key: redis_tls_enabled
+- name: REDIS_MODE
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "airsgateway.redisSecretsName" . }}
+      key: redis_mode
+- name: CACHE_STORE
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "airsgateway.redisSecretsName" . }}
+      key: redis_store
 {{- end }}
 
 {{/*
@@ -278,9 +251,31 @@ Vault Environment Variables
 {{- end }}
 
 {{/*
+Fail fast when required management-plane env vars are missing.
+Skipped when useVaultInjection is true, or when the key is supplied via
+environment.existingSecret (listed in secretKeys, or lookup mode with no secretKeys).
+*/}}
+{{- define "airsgateway.validateRequiredEnv" -}}
+{{- if not .Values.useVaultInjection }}
+{{- $data := .Values.environment.data | default dict }}
+{{- $secretKeys := .Values.environment.secretKeys | default list }}
+{{- $viaExistingSecret := and (not .Values.environment.create) .Values.environment.existingSecret }}
+{{- $authFromSecret := and $viaExistingSecret (or (empty $secretKeys) (has "PORTKEY_CLIENT_AUTH" $secretKeys)) }}
+{{- if and (not $authFromSecret) (empty ((index $data "PORTKEY_CLIENT_AUTH") | default "" | toString | trim)) }}
+{{- fail "environment.data.PORTKEY_CLIENT_AUTH must not be empty. Set it in values, or provide it via environment.existingSecret (include it in environment.secretKeys when using explicit mode)." }}
+{{- end }}
+{{- $orgsFromSecret := and $viaExistingSecret (or (empty $secretKeys) (has "ORGANISATIONS_TO_SYNC" $secretKeys)) }}
+{{- if and (not $orgsFromSecret) (empty ((index $data "ORGANISATIONS_TO_SYNC") | default "" | toString | trim)) }}
+{{- fail "environment.data.ORGANISATIONS_TO_SYNC must not be empty. Set it in values, or provide it via environment.existingSecret (include it in environment.secretKeys when using explicit mode)." }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
 Common Environment Env
 */}}
 {{- define "airsgateway.commonEnv" -}}
+{{- include "airsgateway.validateRequiredEnv" . }}
 {{- if .Values.useVaultInjection }}
 {{- include "airsgateway.vaultEnv" . }}
 {{- else }}
@@ -440,6 +435,7 @@ Common Environment Env as Map
 {{- end }}
 
 {{- define "managementPlane.commonEnv" -}}
+{{- include "airsgateway.validateRequiredEnv" . }}
 {{- $commonEnv := include "airsgateway.commonEnvMap" . | fromYaml -}}
 {{- range $key, $value := $commonEnv }}
 {{- if has $key (list "PORTKEY_CLIENT_AUTH" "ORGANISATIONS_TO_SYNC") }}
