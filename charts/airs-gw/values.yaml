@@ -359,8 +359,6 @@ dataservice:
   name: "dataservice"
   enabled: false
   containerPort: 8081
-  finetuneBucket: ""
-  logexportsBucket: ""
   envFrom: []
   env:
     DEBUG_ENABLED: false

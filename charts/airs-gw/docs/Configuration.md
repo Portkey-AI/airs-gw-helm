@@ -187,9 +187,6 @@ environment:
 | `environment.data.REDIS_MODE` | string | `""` | Redis deployment mode (standalone/cluster) |
 | `environment.data.PORTKEY_CLIENT_AUTH` | string | `""` | Client authentication configuration |
 | `environment.data.ORGANISATIONS_TO_SYNC` | string | `""` | Organizations to synchronize |
-| `environment.data.FINETUNES_BUCKET` | string | `""` | S3/Azure bucket for fine-tuning data |
-| `environment.data.LOG_EXPORTS_BUCKET` | string | `""` | S3/Azure bucket for log exports |
-| `environment.data.FINETUNES_AWS_ROLE_ARN` | string | `""` | AWS IAM role ARN for fine-tunes |
 | `environment.data.SERVER_MODE` | string | `""` | Server operation mode |
 | `environment.data.MCP_PORT` | string | `""` | MCP service port |
 
@@ -293,8 +290,6 @@ environment:
 | `dataservice.name` | string | `"dataservice"` | Dataservice component name |
 | `dataservice.enabled` | boolean | `false` | Enable dataservice component |
 | `dataservice.containerPort` | integer | `8081` | Container port for dataservice |
-| `dataservice.finetuneBucket` | string | `""` | S3/Azure bucket for fine-tune operations |
-| `dataservice.logexportsBucket` | string | `""` | S3/Azure bucket for log exports |
 | `dataservice.env.DEBUG_ENABLED` | boolean | `false` | Enable debug mode |
 | `dataservice.env.SERVICE_NAME` | string | `"airsgateway-dataservice"` | Service name for dataservice |
 
