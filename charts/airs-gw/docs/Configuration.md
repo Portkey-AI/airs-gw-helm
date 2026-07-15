@@ -165,7 +165,8 @@ environment:
 |----------|------|---------|-------------|
 | `environment.data.SERVICE_NAME` | string | `"airsgateway"` | Service name identifier |
 | `environment.data.PORT` | string | `"8787"` | Gateway service port |
-| `environment.data.LOG_STORE` | string | `""` | Log storage backend (e.g., s3, azure) |
+| `environment.data.LOG_STORE` | string | `"control_plane"` | Log storage backend (e.g., s3, azure) |
+| `environment.data.ANALYTICS_STORE` | string | `"control_plane"` | Analytics storage backend (e.g., clickhouse) |
 | `environment.data.LOG_STORE_REGION` | string | `""` | AWS/Azure region for log storage |
 | `environment.data.LOG_STORE_ACCESS_KEY` | string | `""` | Access key for log storage (consider using secretKeys) |
 | `environment.data.LOG_STORE_SECRET_KEY` | string | `""` | Secret key for log storage (consider using secretKeys) |
