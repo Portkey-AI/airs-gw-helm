@@ -1,24 +1,32 @@
-{{- if eq (include "redis.deploy" .) "true" }}
+{{- if not .Values.redis.external.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.redis.name | default "redis" }}
+  name: {{ include "airsgateway.fullname" . }}-{{ .Values.redis.name }}
   labels:
-    {{- include "redis.labels" . | nindent 4 }}
+    {{- include "airsgateway.labels" . | nindent 4 }}
+    {{- include "airsgateway.selectorLabels" . | nindent 4 }}
     {{- with .Values.redis.service.labels }}
-    {{- toYaml . | nindent 4 }}
+      {{- toYaml . | nindent 4 }}
     {{- end }}
   annotations:
+    {{- include "airsgateway.annotations" . | nindent 4 }}
     {{- with .Values.redis.service.annotations }}
-    {{- toYaml . | nindent 4 }}
+      {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  type: {{ .Values.redis.service.type | default "ClusterIP" }}
+  type: {{ .Values.redis.service.type }}
+  {{- with .Values.redis.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  loadBalancerIP: {{ .Values.redis.service.loadBalancerIP }}
   ports:
-    - port: {{ .Values.redis.service.port | default 6379 }}
+    - name: redis
+      port: {{ .Values.redis.service.port }}
       targetPort: redis
       protocol: TCP
-      name: redis
   selector:
-    {{- include "redis.selectorLabels" . | nindent 4 }}
+    {{- include "airsgateway.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: {{ include "airsgateway.fullname" . }}-{{ .Values.redis.name }}
 {{- end }}

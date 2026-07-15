@@ -62,6 +62,12 @@ fullnameOverride: ""
 #   team: platform
 commonLabels: {}
 
+# Annotations that will be applied to all resources created by the chart
+commonAnnotations: {}
+
+# Common environment variables applied to redis (and other) workloads.
+commonEnv: []
+
 selectorLabels: {}
 
 # Existing image pull secrets (object or string form).
@@ -122,15 +128,9 @@ environment:
   data:
     SERVICE_NAME: airsgateway
     PORT: "8787"
-    LOG_STORE: control_plane
-    ANALYTICS_STORE: control_plane
-    # Minimum supported Redis version: 6.2
-    # Bundled Redis is used when CACHE_STORE is "redis". See docs/Redis.md for managed Redis.
-    CACHE_STORE: redis
-    REDIS_URL: redis://redis:6379
-    REDIS_TLS_ENABLED: "false"
+    # CACHE_STORE / REDIS_* for the bundled or external Redis come from the redis secret
+    # (see redis.* values). Additional Redis auth modes: docs/Redis.md.
     LOG_STORE_FILE_PATH_FORMAT: "v2"
-    REDIS_MODE: 
     PORTKEY_CLIENT_AUTH: 
     ORGANISATIONS_TO_SYNC: 
     SERVER_MODE: "all"
@@ -357,8 +357,6 @@ dataservice:
   name: "dataservice"
   enabled: false
   containerPort: 8081
-  finetuneBucket: ""
-  logexportsBucket: ""
   envFrom: []
   env:
     DEBUG_ENABLED: false
@@ -472,69 +470,101 @@ dataservice:
     minAvailable: 1
     maxUnavailable: ""
 
-# Redis configuration (minimum version: 6.2).
-# Deployed when enabled is true and environment.data.CACHE_STORE is "redis".
+# Minimum supported Redis version: 6.2
 redis:
-  enabled: true
   name: "redis"
-  auth:
+  external:
+    # If enabled, use the following values to connect to an external redis instance. This will also disable the
+    # creation of a redis stateful-set and service.
     enabled: false
-    # When enabled, set create=true with password, or create=false with existingSecret.
-    create: true
-    existingSecret: ""
-    existingSecretPasswordKey: "redis-password"
-    # Required when enabled and create are both true.
-    password: ""
-  persistence:
-    enabled: true
-    size: 1Gi
-    storageClassName: ""
-    accessMode: ReadWriteOnce
-  config:
-    # Additional redis.conf lines.
-    # Example:
-    #   maxmemory 256mb
-    #   maxmemory-policy allkeys-lru
-    extra: ""
+    connectionUrl: ""
+    tlsEnabled: "false"
+    mode: "standalone"
+    store: "redis"
+    existingSecretName: ""
+  containerPort: 6379
   statefulSet:
-    revisionHistoryLimit: 10
     labels: {}
     annotations: {}
-    podAnnotations: {}
-    podLabels: {}
-    podSecurityContext:
-      fsGroup: 999
-      seccompProfile:
-        type: RuntimeDefault
-    securityContext:
-      runAsNonRoot: true
-      runAsUser: 999
-      runAsGroup: 999
-      allowPrivilegeEscalation: false
-      # Keep false so Redis can write RDB/AOF under /data.
-      readOnlyRootFilesystem: false
-      capabilities:
-        drop:
-          - ALL
-    resources: {}
+    podSecurityContext: {}
+    securityContext: {}
+    replicas: 1
+    # -- Number of old ControllerRevisions to retain to allow rollback. Defaults to 10.
+    revisionHistoryLimit: 10
+    # resources:
+    #   limits:
+    #     cpu: 4000m
+    #     memory: 16Gi
+    #   requests:
+    #     cpu: 1000m
+    #     memory: 2Gi
+    command: []
+    startupProbe:
+      exec:
+        command:
+          - /bin/sh
+          - -c
+          - exec redis-cli ping
+      failureThreshold: 6
+      periodSeconds: 10
+      timeoutSeconds: 1
+    readinessProbe:
+      exec:
+        command:
+          - /bin/sh
+          - -c
+          - exec redis-cli ping
+      failureThreshold: 6
+      periodSeconds: 10
+      timeoutSeconds: 1
+    livenessProbe:
+      exec:
+        command:
+          - /bin/sh
+          - -c
+          - exec redis-cli ping
+      failureThreshold: 6
+      periodSeconds: 10
+      timeoutSeconds: 1
+    extraContainerConfig: {}
+    extraEnv: []
+    sidecars: []
+    topologySpreadConstraints: []
     nodeSelector: {}
     tolerations: []
     affinity: {}
-    livenessProbe:
-      enabled: true
-      initialDelaySeconds: 20
-      periodSeconds: 10
-      timeoutSeconds: 5
-      failureThreshold: 3
-    readinessProbe:
-      enabled: true
-      initialDelaySeconds: 5
-      periodSeconds: 5
-      timeoutSeconds: 3
-      failureThreshold: 3
+    volumes: []
+    volumeMounts: []
+    # DNS policy for the redis pod.
+    # Valid values: ClusterFirst (default), ClusterFirstWithHostNet, Default, None
+    # NOTE: When set to "None", dnsConfig must be provided with at least one nameserver.
+    dnsPolicy: ""
+    # Custom DNS configuration for the redis pod.
+    # Required when dnsPolicy is "None" (must include at least one nameserver).
+    # Example:
+    # dnsConfig:
+    #   nameservers:
+    #     - 1.2.3.4
+    #   searches:
+    #     - ns1.svc.cluster.local
+    #   options:
+    #     - name: ndots
+    #       value: "5"
+    dnsConfig: {}
+    persistence:
+      enabled: false
+      size: 2Gi
+      storageClassName: ""
   service:
     type: ClusterIP
     port: 6379
+    labels: {}
+    annotations: {}
+    loadBalancerSourceRanges: []
+    loadBalancerIP: ""
+  serviceAccount:
+    create: true
+    name: ""
     labels: {}
     annotations: {}
 

@@ -69,6 +69,7 @@ spec:
             {{- include "airsgateway.builtinDefaults" . | nindent 12 }}
             {{- include "managementPlane.commonEnv" . | nindent 12 }}
             {{- include "cacheStore.commonEnv" . | nindent 12 }}
+            {{- include "airsgateway.redisEnv" . | nindent 12 }}
             {{- include "logStore.commonEnv" . | nindent 12 }}
             {{- with .Values.dataservice.deployment.extraEnv }}
               {{- toYaml . | nindent 12 }}
