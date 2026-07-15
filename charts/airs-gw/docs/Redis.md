@@ -6,47 +6,43 @@ The AIRS Gateway includes a built-in Redis instance by default. For production d
 
 ## Built-in Redis
 
-Deployed when `redis.enabled` is `true` and `CACHE_STORE` is `redis`.
-
-Auth is **disabled by default**. To enable it, set an explicit password (nothing is auto-generated).
+Bundled Redis is deployed when `redis.external.enabled` is `false`. Connection settings
+(`CACHE_STORE`, `REDIS_URL`, `REDIS_TLS_ENABLED`, `REDIS_MODE`) are written to a chart-managed
+Secret and injected into the gateway.
 
 ```yaml
 redis:
-  enabled: true
-  auth:
+  external:
     enabled: false
-  persistence:
-    enabled: true
-    size: 1Gi
-
-environment:
-  data:
-    CACHE_STORE: redis
-    REDIS_URL: "redis://redis:6379"
-    REDIS_TLS_ENABLED: "false"
+    tlsEnabled: "false"
+    mode: "standalone"
+    store: "redis"
+  statefulSet:
+    persistence:
+      enabled: true
+      size: 2Gi
 ```
 
-### Enable auth with an explicit password
+### Use an external Redis
 
 ```yaml
 redis:
-  auth:
+  external:
     enabled: true
-    create: true
-    password: "your-strong-password"
+    connectionUrl: "redis://my-redis:6379"
+    tlsEnabled: "false"
+    mode: "standalone"
+    store: "redis"
 ```
-
-The gateway receives `REDIS_PASSWORD` from the chart-managed Secret automatically.
 
 ### Use an existing Secret
 
+Provide a Secret with keys `redis_connection_url`, `redis_tls_enabled`, `redis_mode`, and `redis_store`:
+
 ```yaml
 redis:
-  auth:
-    enabled: true
-    create: false
-    existingSecret: my-redis-secret
-    existingSecretPasswordKey: redis-password
+  external:
+    existingSecretName: my-redis-secret
 ```
 
 ---
