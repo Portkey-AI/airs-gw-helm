@@ -459,14 +459,13 @@ Common Environment Env as Map
 {{- end }}
 {{- include "airsgateway.renderEnvVar" (list "SERVICE_NAME" .Values.dataservice.env.SERVICE_NAME) | nindent 0 }}
 {{- range $key, $value := $commonEnv }}
-{{- if has $key (list "ANALYTICS_STORE" "ANALYTICS_STORE_ENDPOINT" "ANALYTICS_STORE_USER" "ANALYTICS_STORE_PASSWORD" "ANALYTICS_LOG_TABLE" "FINETUNES_BUCKET" "FINETUNES_AWS_ROLE_ARN" "LOG_EXPORTS_BUCKET") }}
+{{- if has $key (list "ANALYTICS_STORE" "ANALYTICS_STORE_ENDPOINT" "ANALYTICS_STORE_USER" "ANALYTICS_STORE_PASSWORD" "ANALYTICS_LOG_TABLE") }}
 {{- include "airsgateway.renderEnvVar" (list $key $value) | nindent 0 }}
 {{- end }}
 {{- end }}
 {{- include "airsgateway.renderEnvVar" (list "CLICKHOUSE_HOST" ($commonEnv.ANALYTICS_STORE_ENDPOINT)) | nindent 0 }}
 {{- include "airsgateway.renderEnvVar" (list "CLICKHOUSE_USER" ($commonEnv.ANALYTICS_STORE_USER)) | nindent 0 }}
 {{- include "airsgateway.renderEnvVar" (list "CLICKHOUSE_PASSWORD" ($commonEnv.ANALYTICS_STORE_PASSWORD)) | nindent 0 }}
-{{- include "airsgateway.renderEnvVar" (list "AWS_S3_FINETUNE_BUCKET" ($commonEnv.FINETUNES_BUCKET)) | nindent 0 }}
 {{- end }}
 
 {{/*

@@ -70,7 +70,6 @@ Use the keys defined under `environment.data` in `values.yaml`. Common keys incl
 - Log Store: `LOG_STORE`, `LOG_STORE_REGION`, `LOG_STORE_ACCESS_KEY`, `LOG_STORE_SECRET_KEY`, `LOG_STORE_GENERATIONS_BUCKET`, `LOG_STORE_BASEPATH`, `LOG_STORE_AWS_ROLE_ARN`, `LOG_STORE_AWS_EXTERNAL_ID`
 - AWS Assume Role (Bedrock etc.): `AWS_ASSUME_ROLE_ACCESS_KEY_ID`, `AWS_ASSUME_ROLE_SECRET_ACCESS_KEY`, `AWS_ASSUME_ROLE_REGION`
 - Azure Blob: `AZURE_AUTH_MODE`, `AZURE_MANAGED_CLIENT_ID`, `AZURE_STORAGE_ACCOUNT`, `AZURE_STORAGE_KEY`, `AZURE_STORAGE_CONTAINER`
-- Dataservice-related (if enabled): `FINETUNES_BUCKET`, `LOG_EXPORTS_BUCKET`, `FINETUNES_AWS_ROLE_ARN`
 
 Include only the keys you want to source from Secrets Manager; others can stay as literals in `values.yaml`.
 
@@ -220,9 +219,6 @@ environment:
     AZURE_MANAGED_CLIENT_ID: ""
     AZURE_STORAGE_ACCOUNT: ""
     AZURE_STORAGE_CONTAINER: ""
-    FINETUNES_BUCKET: ""
-    LOG_EXPORTS_BUCKET: ""
-    FINETUNES_AWS_ROLE_ARN: ""
 ```
 
 **Benefits:**
@@ -275,11 +271,7 @@ Create an AWS Secrets Manager secret like `arn:aws:secretsmanager:<REGION>:<ACCO
   "AZURE_MANAGED_CLIENT_ID": "",
   "AZURE_STORAGE_ACCOUNT": "",
   "AZURE_STORAGE_KEY": "",
-  "AZURE_STORAGE_CONTAINER": "",
-
-  "FINETUNES_BUCKET": "",
-  "LOG_EXPORTS_BUCKET": "",
-  "FINETUNES_AWS_ROLE_ARN": ""
+  "AZURE_STORAGE_CONTAINER": ""
 }
 ```
 
@@ -357,12 +349,6 @@ spec:
             objectAlias: AZURE_STORAGE_KEY
           - path: AZURE_STORAGE_CONTAINER
             objectAlias: AZURE_STORAGE_CONTAINER
-          - path: FINETUNES_BUCKET
-            objectAlias: FINETUNES_BUCKET
-          - path: LOG_EXPORTS_BUCKET
-            objectAlias: LOG_EXPORTS_BUCKET
-          - path: FINETUNES_AWS_ROLE_ARN
-            objectAlias: FINETUNES_AWS_ROLE_ARN
   secretObjects:
     - secretName: airs-gw-env
       type: Opaque
@@ -427,12 +413,6 @@ spec:
           key: AZURE_STORAGE_KEY
         - objectName: AZURE_STORAGE_CONTAINER
           key: AZURE_STORAGE_CONTAINER
-        - objectName: FINETUNES_BUCKET
-          key: FINETUNES_BUCKET
-        - objectName: LOG_EXPORTS_BUCKET
-          key: LOG_EXPORTS_BUCKET
-        - objectName: FINETUNES_AWS_ROLE_ARN
-          key: FINETUNES_AWS_ROLE_ARN
 ```
 
 Apply:
@@ -509,9 +489,6 @@ environment:
     AZURE_STORAGE_ACCOUNT: ""
     AZURE_STORAGE_KEY: ""
     AZURE_STORAGE_CONTAINER: ""
-    FINETUNES_BUCKET: ""
-    LOG_EXPORTS_BUCKET: ""
-    FINETUNES_AWS_ROLE_ARN: ""
 ```
 
 How it works:
