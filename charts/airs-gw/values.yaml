@@ -128,8 +128,6 @@ environment:
   data:
     SERVICE_NAME: airsgateway
     PORT: "8787"
-    LOG_STORE: control_plane
-    ANALYTICS_STORE: control_plane
     # CACHE_STORE / REDIS_* for the bundled or external Redis come from the redis secret
     # (see redis.* values). Additional Redis auth modes: docs/Redis.md.
     LOG_STORE_FILE_PATH_FORMAT: "v2"

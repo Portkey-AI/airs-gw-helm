@@ -334,6 +334,8 @@ Built-in defaults rendered only when not already provided in environment.data.
   "ALBUS_BASEPATH"           "https://mp.us.prod.airs-gw.portkey.ai"
   "CONTROL_PLANE_BASEPATH"   "https://aigw.portkey.ai/v1"
   "CONFIG_READER_PATH"       "https://api.portkey.ai/v1/sync/model-configs"
+  "ANALYTICS_STORE"          "control_plane"
+  "LOG_STORE"                "control_plane"
 -}}
 {{- range $key, $val := $defaults }}
 {{- if not (hasKey $env $key) }}
@@ -417,9 +419,8 @@ Common Environment Env as Map
 
 {{- define "analyticStore.commonEnv" -}}
 {{- $commonEnv := include "airsgateway.commonEnvMap" . | fromYaml -}}
-{{- include "airsgateway.renderEnvVar" (list "ANALYTICS_STORE" "control_plane") | nindent 0 }}
 {{- range $key, $value := $commonEnv }}
-{{- if has $key (list "ANALYTICS_STORE_ENDPOINT" "ANALYTICS_STORE_USER" "ANALYTICS_STORE_PASSWORD" "ANALYTICS_LOG_TABLE" "ANALYTICS_FEEDBACK_TABLE") }}
+{{- if has $key (list "ANALYTICS_STORE" "ANALYTICS_STORE_ENDPOINT" "ANALYTICS_STORE_USER" "ANALYTICS_STORE_PASSWORD" "ANALYTICS_LOG_TABLE" "ANALYTICS_FEEDBACK_TABLE") }}
 {{- include "airsgateway.renderEnvVar" (list $key $value) | nindent 0 }}
 {{- end }}
 {{- end }}
