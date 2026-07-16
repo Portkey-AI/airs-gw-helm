@@ -5,6 +5,19 @@ entries:
       artifacthub.io/license: Apache-2.0
     apiVersion: v2
     appVersion: 2.11.1
+    created: "2026-07-16T12:51:54.974395761Z"
+    description: Helm chart to deploy the AIRS Gateway application in a hybrid cloud
+      environment
+    digest: 36fd21ac000dca27649072b1ebfb68d99c5a747338b8aba816f17861a13da797
+    name: airs-gw
+    type: application
+    urls:
+    - https://github.com/Portkey-AI/airs-gw-helm/releases/download/airs-gw-1.1.0/airs-gw-1.1.0.tgz
+    version: 1.1.0
+  - annotations:
+      artifacthub.io/license: Apache-2.0
+    apiVersion: v2
+    appVersion: 2.11.1
     created: "2026-07-15T22:03:10.089158539Z"
     description: Helm chart to deploy the AIRS Gateway application in a hybrid cloud
       environment
@@ -14,4 +27,4 @@ entries:
     urls:
     - https://github.com/Portkey-AI/airs-gw-helm/releases/download/airs-gw-1.0.0/airs-gw-1.0.0.tgz
     version: 1.0.0
-generated: "2026-07-15T22:03:10.089167867Z"
+generated: "2026-07-16T12:51:54.974406627Z"
