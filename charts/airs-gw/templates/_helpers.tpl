@@ -331,9 +331,8 @@ Built-in defaults rendered only when not already provided in environment.data.
 {{- define "airsgateway.builtinDefaults" -}}
 {{- $env := include "airsgateway.commonEnvMap" . | fromYaml -}}
 {{- $defaults := dict
-  "ALBUS_BASEPATH"           "https://mp.us.prod.airs-gw.portkey.ai"
+  "ALBUS_BASEPATH"           "https://mp.us.prod.airs-gw.portkey.ai/api"
   "CONTROL_PLANE_BASEPATH"   "https://aigw.portkey.ai/v1"
-  "CONFIG_READER_PATH"       "https://api.portkey.ai/v1/sync/model-configs"
   "ANALYTICS_STORE"          "control_plane"
   "LOG_STORE"                "control_plane"
 -}}
