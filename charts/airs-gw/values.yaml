@@ -20,12 +20,12 @@ images:
   gatewayImage:
     repository: "registry.portkey.ai/airsgw/gateway_enterprise"
     pullPolicy: Always
-    tag: "2.11.1"
+    tag: "2.15.0" # Minimum supported version is 2.15.0
   # Optional: Dataservice image
   dataserviceImage:
     repository: "registry.portkey.ai/airsgw/data-service"
     pullPolicy: Always
-    tag: "1.8.0"
+    tag: "1.9.0"
   # Optional: Redis image
   redisImage:
     repository: "docker.io/redis"
