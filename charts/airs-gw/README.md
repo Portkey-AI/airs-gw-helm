@@ -75,7 +75,7 @@ helm uninstall airs-gw --namespace airs-gw
 - [Artifact Hub (Portkey AI)](https://artifacthub.io/packages/search?org=portkey-ai&sort=relevance&page=1)
 - [External Redis / Cache Store configuration](./docs/Redis.md) — configure AWS ElastiCache, Azure Managed Redis, or GCP Memorystore as the cache store
 - [All available configuration options](./docs/Configuration.md) — full reference for all Helm chart values
-- [Deployment guide](http://localhost:3000/self-hosting/hybrid-deployments) — end-to-end steps for deploying on EKS, AKS, or GKE
+- [Deployment guide](https://portkey.ai/docs/self-hosting/hybrid-deployments) — end-to-end steps for deploying on EKS, AKS, or GKE
 
 ---
 
