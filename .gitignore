@@ -1,3 +1,4 @@
 portkey_config*.yaml
 airsgw_config*.yaml
 **/*.DS_Store
+/values.yaml

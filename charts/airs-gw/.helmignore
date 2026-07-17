@@ -1,3 +1,6 @@
 resources/
 docs/
 README.md
+portkey_config*.yaml
+airsgw_config*.yaml
+*.DS_Store
