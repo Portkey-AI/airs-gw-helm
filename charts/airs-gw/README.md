@@ -8,7 +8,7 @@
 
 ### 1. Register your Gateway
 
-Follow the [Gateway Registration guide](https://docs.portkey.ai/self-hosting/hybrid-deployments/gateway-registration) to register your gateway and download the pre-filled `values.yaml` configuration file.
+Follow the [Gateway Registration guide](https://docs.portkey.ai/docs/self-hosting/hybrid-deployments/gateway-registration) to register your gateway and download the pre-filled `values.yaml` configuration file.
 
 ### 2. Configure Storage
 
