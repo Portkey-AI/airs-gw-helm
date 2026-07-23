@@ -203,8 +203,10 @@ the user or some other secret provisioning mechanism
 
 {{/*
 Redis environment variables sourced from the redis secret (bundled or external).
-Each variable is only rendered when the user has not already supplied it via
-environment.data, so custom overrides take precedence without duplicate keys.
+Each variable is only rendered when it is not already present in the user-supplied
+environment (airsgateway.commonEnvMap), which covers environment.data,
+environment.existingSecret/secretKeys, and vault injection. This lets any of those
+override the redis-secret defaults without producing duplicate env keys.
 */}}
 {{- define "airsgateway.redisEnv" -}}
 {{- $env := include "airsgateway.commonEnvMap" . | fromYaml -}}
