@@ -203,28 +203,29 @@ the user or some other secret provisioning mechanism
 
 {{/*
 Redis environment variables sourced from the redis secret (bundled or external).
+Each variable is only rendered when it is not already present in the user-supplied
+environment (airsgateway.commonEnvMap), which covers environment.data,
+environment.existingSecret/secretKeys, and vault injection. This lets any of those
+override the redis-secret defaults without producing duplicate env keys.
 */}}
 {{- define "airsgateway.redisEnv" -}}
-- name: REDIS_URL
+{{- $env := include "airsgateway.commonEnvMap" . | fromYaml -}}
+{{- $secretName := include "airsgateway.redisSecretsName" . -}}
+{{- $keys := dict
+  "REDIS_URL"          "redis_connection_url"
+  "REDIS_TLS_ENABLED"  "redis_tls_enabled"
+  "REDIS_MODE"         "redis_mode"
+  "CACHE_STORE"        "redis_store"
+-}}
+{{- range $name := (list "REDIS_URL" "REDIS_TLS_ENABLED" "REDIS_MODE" "CACHE_STORE") }}
+{{- if not (hasKey $env $name) }}
+- name: {{ $name }}
   valueFrom:
     secretKeyRef:
-      name: {{ include "airsgateway.redisSecretsName" . }}
-      key: redis_connection_url
-- name: REDIS_TLS_ENABLED
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "airsgateway.redisSecretsName" . }}
-      key: redis_tls_enabled
-- name: REDIS_MODE
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "airsgateway.redisSecretsName" . }}
-      key: redis_mode
-- name: CACHE_STORE
-  valueFrom:
-    secretKeyRef:
-      name: {{ include "airsgateway.redisSecretsName" . }}
-      key: redis_store
+      name: {{ $secretName }}
+      key: {{ index $keys $name }}
+{{- end }}
+{{- end }}
 {{- end }}
 
 {{/*
