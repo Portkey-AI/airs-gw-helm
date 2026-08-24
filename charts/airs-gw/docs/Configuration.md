@@ -57,6 +57,46 @@
 | `vaultConfig.role` | string | `"your-vault-role"` | Vault role for authentication |
 | `vaultConfig.kubernetesSecret` | string | `""` | Kubernetes secret name for Vault |
 
+### Idira Secrets Manager Integration
+
+Idira Secrets Manager can supply chart secrets through the [External Secrets Operator (ESO)](https://external-secrets.io) using ESO's built-in provider. No chart code changes are required: ESO materializes a standard Kubernetes Secret in the release namespace, and existing chart fields (`imagePullSecrets`, `environment.existingSecret`, `minio.authKey.existingSecret`) reference it by name.
+
+> **Note:** for a video walkthrough of the JWT authenticator setup on the Idira side, see [How to setup Idira Secrets Manager for JWT authentication with External Secrets Operator](https://www.youtube.com/watch?v=4KTu5QFgIzQ).
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `SecretStore.spec.provider.conjur.url` | string | `""` | Idira tenant URL (e.g. `https://<tenant>.secretsmgr.cyberark.cloud`) |
+| `SecretStore.spec.provider.conjur.auth.jwt.account` | string | `"conjur"` | Idira account name (Cloud tenants use `conjur`) |
+| `SecretStore.spec.provider.conjur.auth.jwt.serviceID` | string | `""` | JWT authenticator service ID (e.g. `k8s-cluster-name`) |
+| `SecretStore.spec.provider.conjur.auth.jwt.serviceAccountRef.name` | string | `""` | Kubernetes ServiceAccount whose projected JWT authenticates to Idira |
+| `ExternalSecret.spec.refreshInterval` | duration | `"1h"` | Refresh cadence for pulling updates from Idira |
+| `ExternalSecret.spec.target.name` | string | `""` | Name of the Kubernetes Secret ESO materializes. Reference this name from `environment.existingSecret` or `imagePullSecrets` |
+| `ExternalSecret.spec.data[].secretKey` | string | `""` | Target key inside the materialized Secret (e.g. `PORTKEY_CLIENT_AUTH`) |
+| `ExternalSecret.spec.data[].remoteRef.key` | string | `""` | Idira variable path (e.g. `data/portkey/airs-gw/client-auth`) |
+
+> **Note:** the ESO provider identifier in `SecretStore.spec.provider.*` reflects ESO's upstream naming and is required verbatim for the config to work.
+
+#### Wire-in Pattern
+
+1. Create a `ServiceAccount` in the release namespace and register its projected JWT with the Idira JWT authenticator. Idira's Platform Discovery documents the Kubernetes host and permission grants.
+2. Apply a `SecretStore` (or `ClusterSecretStore`) pointing at the Idira tenant URL and authenticator service ID.
+3. Apply an `ExternalSecret` mapping variable paths to keys inside a target Secret (for example, `airs-gw-credentials`).
+4. Point the chart at the materialized Secret in `values.yaml`:
+
+```yaml
+environment:
+  create: false
+  existingSecret: "airs-gw-credentials"
+  secretKeys:
+    - PORTKEY_CLIENT_AUTH
+    - LOG_STORE_SECRET_KEY
+    - REDIS_URL
+imagePullSecrets:
+  - name: airs-gw-registry
+```
+
+ESO's `refreshInterval` rotates the Kubernetes Secret in place. Combine with `autoRestart: true` (or an external reloader) if the gateway pods need to pick up rotated values without a manual restart.
+
 ### Environment Configuration
 
 | Variable | Type | Default | Description |
