@@ -161,6 +161,13 @@ environment:
 
 > **Note**: These variables are configured under `environment.data`
 
+> **Note**: This table covers the variables most commonly set through this
+> chart. The gateway supports additional environment variables not listed
+> here (e.g. those for [gateway-local JWT
+> authentication](https://portkey.ai/docs/product/enterprise-offering/org-management/jwt#gateway-local-jwt-authentication)).
+> For the authoritative, up-to-date list of variables the gateway application
+> itself supports, see the [Portkey docs](https://portkey.ai/docs).
+
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `environment.data.SERVICE_NAME` | string | `"airsgateway"` | Service name identifier |
