@@ -184,6 +184,7 @@ environment:
 | `environment.data.AZURE_STORAGE_CONTAINER` | string | `""` | Azure storage container name |
 | `environment.data.GCP_AUTH_MODE` | string | `""` | GCP authentication mode (`workload`). Required for both GCS log storage and Vertex AI workload identity |
 | `environment.data.GCP_WIF_AUDIENCE` | string | `""` | Workload Identity Federation audience (used with `GCP_AUTH_MODE=workload` outside GKE; when unset the GKE metadata server is used) |
+| `environment.data.GCP_WIF_SERVICE_ACCOUNT_EMAIL` | string | `""` | Vertex AI WIF: when set, the gateway impersonates this service account (`iamcredentials:generateAccessToken`) after federating; when empty the federated principal accesses Vertex directly. Gateway-wide (not per-request). See [Vertex AI Workload Identity](./VertexAI.md) |
 | `environment.data.CACHE_STORE` | string | `"redis"` | Cache storage backend (minimum Redis version: 6.2) |
 | `environment.data.REDIS_URL` | string | `"redis://redis:6379"` | Redis connection URL (consider using secretKeys if contains auth) |
 | `environment.data.REDIS_TLS_ENABLED` | string | `"false"` | Enable TLS for Redis connection |
