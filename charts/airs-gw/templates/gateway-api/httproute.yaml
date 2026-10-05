@@ -1,0 +1,78 @@
+{{- if .Values.gatewayApi.enabled }}
+{{- include "gatewayApi.validate" . }}
+{{- $hostBased := .Values.gatewayApi.hostBased }}
+{{- $route := .Values.gatewayApi.httpRoute | default dict }}
+{{- if eq (include "gateway.enabled" .) "true" }}
+apiVersion: {{ include "gatewayApi.apiVersion" . }}
+kind: HTTPRoute
+metadata:
+  name: {{ include "airsgateway.fullname" . }}
+  labels:
+    {{- include "gateway.labels" . }}
+    {{- with $route.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    {{- include "airsgateway.annotations" . | nindent 4 }}
+    {{- with $route.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  parentRefs:
+    {{- include "gatewayApi.parentRefs" . | nindent 4 }}
+  {{- with compact (list .Values.gatewayApi.hostname) }}
+  hostnames:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ ternary "/" (.Values.gatewayApi.gatewayPath | default "/") $hostBased | quote }}
+      {{- with (include "gatewayApi.ruleExtras" . | trim) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      backendRefs:
+        {{- include "gatewayApi.gatewayBackendRef" . | nindent 8 }}
+{{- end }}
+{{- if eq (include "mcp.enabled" .) "true" }}
+{{- if eq (include "gateway.enabled" .) "true" }}
+---
+{{- end }}
+apiVersion: {{ include "gatewayApi.apiVersion" . }}
+kind: HTTPRoute
+metadata:
+  name: {{ include "airsgateway.fullname" . }}-mcp
+  labels:
+    {{- include "gateway.labels" . }}
+    {{- with $route.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    {{- include "airsgateway.annotations" . | nindent 4 }}
+    {{- with $route.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  parentRefs:
+    {{- include "gatewayApi.parentRefs" . | nindent 4 }}
+  {{- with ternary (list (include "gatewayApi.mcpHostname" .)) (compact (list .Values.gatewayApi.hostname)) $hostBased }}
+  hostnames:
+    {{- range . }}
+    - {{ . | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: {{ ternary "/" (.Values.gatewayApi.mcpPath | default "/mcp") $hostBased | quote }}
+      {{- with (include "gatewayApi.ruleExtras" . | trim) }}
+      {{- . | nindent 6 }}
+      {{- end }}
+      backendRefs:
+        {{- include "gatewayApi.mcpBackendRef" . | nindent 8 }}
+{{- end }}
+{{- end }}

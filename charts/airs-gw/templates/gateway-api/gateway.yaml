@@ -1,0 +1,35 @@
+{{- if .Values.gatewayApi.enabled }}
+{{- include "gatewayApi.validate" . }}
+{{- $gw := .Values.gatewayApi.gateway | default dict }}
+{{- if $gw.create }}
+apiVersion: {{ include "gatewayApi.apiVersion" . }}
+kind: Gateway
+metadata:
+  name: {{ include "gatewayApi.gatewayName" . }}
+  {{- with $gw.namespace }}
+  namespace: {{ . }}
+  {{- end }}
+  labels:
+    {{- include "gateway.labels" . }}
+    {{- with $gw.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    {{- include "airsgateway.annotations" . | nindent 4 }}
+    {{- with $gw.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  gatewayClassName: {{ required "gatewayApi.gateway.gatewayClassName is required when gatewayApi.gateway.create is true." $gw.gatewayClassName }}
+  {{- with $gw.addresses }}
+  addresses:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $gw.infrastructure }}
+  infrastructure:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  listeners:
+    {{- include "gatewayApi.listeners" . | nindent 4 }}
+{{- end }}
+{{- end }}

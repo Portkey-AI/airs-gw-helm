@@ -230,6 +230,90 @@ environment:
 | `ingress.annotations` | object | `{}` | Ingress annotations |
 | `ingress.labels` | object | `{}` | Ingress labels |
 | `ingress.tls` | array | `[]` | TLS configuration for ingress |
+| `ingress.hostBased` | boolean | `false` | `true` for host-based routing (separate hostnames for gateway and MCP), `false` for path-based routing (same hostname, different paths) |
+| `ingress.mcpHostname` | string | `""` | MCP hostname, only used when `hostBased` is `true`. Defaults to `mcp.{hostname}` |
+| `ingress.mcpPath` | string | `"/mcp"` | MCP path, only used when `hostBased` is `false` |
+| `ingress.gatewayPath` | string | `"/"` | Gateway path, only used when `hostBased` is `false` |
+
+### Gateway API Configuration
+
+Alternative to `ingress` for clusters running a [Gateway API](https://gateway-api.sigs.k8s.io/) implementation (Istio, Envoy Gateway, NGINX Gateway Fabric, GKE Gateway, Kong, ...). The Gateway API CRDs must already be installed in the cluster.
+
+Setting `gatewayApi.enabled=true` renders:
+
+- a `Gateway` (unless `gatewayApi.gateway.create=false`), and
+- one `HTTPRoute` per enabled endpoint — `{fullname}` for the gateway and `{fullname}-mcp` for the MCP server, following the same `SERVER_MODE` gating as the ingress template.
+
+Hostname and path semantics mirror the `ingress` block.
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `gatewayApi.enabled` | boolean | `false` | Enable Gateway API resources |
+| `gatewayApi.apiVersion` | string | `gateway.networking.k8s.io/v1` | API group/version of the generated resources. Use `gateway.networking.k8s.io/v1beta1` on older Gateway API installs |
+| `gatewayApi.hostname` | string | `""` | Primary hostname. Leave empty in path-based mode to match any hostname |
+| `gatewayApi.hostBased` | boolean | `false` | `true` for host-based routing (separate hostnames for gateway and MCP), `false` for path-based routing (same hostname, different paths) |
+| `gatewayApi.mcpHostname` | string | `""` | MCP hostname, only used when `hostBased` is `true`. Defaults to `mcp.{hostname}` |
+| `gatewayApi.mcpPath` | string | `"/mcp"` | MCP path, only used when `hostBased` is `false` |
+| `gatewayApi.gatewayPath` | string | `"/"` | Gateway path, only used when `hostBased` is `false` |
+| `gatewayApi.gateway.create` | boolean | `true` | Create a `Gateway`. Set to `false` to attach the HTTPRoutes to a Gateway managed outside the chart (requires `gatewayApi.httpRoute.parentRefs`) |
+| `gatewayApi.gateway.name` | string | `""` | Gateway name (defaults to the release fullname) |
+| `gatewayApi.gateway.namespace` | string | `""` | Gateway namespace (defaults to the release namespace) |
+| `gatewayApi.gateway.gatewayClassName` | string | `"istio"` | `GatewayClass` to use, e.g. `istio`, `envoy-gateway`, `nginx`, `gke-l7-global-external-managed` |
+| `gatewayApi.gateway.annotations` | object | `{}` | Additional Gateway annotations |
+| `gatewayApi.gateway.labels` | object | `{}` | Additional Gateway labels |
+| `gatewayApi.gateway.addresses` | array | `[]` | Static addresses requested for the Gateway |
+| `gatewayApi.gateway.infrastructure` | object | `{}` | Implementation-specific infrastructure settings (labels, annotations, `parametersRef`) |
+| `gatewayApi.gateway.listener.name` | string | `"http"` | Listener name, also used as the HTTPRoute `sectionName` |
+| `gatewayApi.gateway.listener.port` | integer | `80` | Listener port |
+| `gatewayApi.gateway.listener.protocol` | string | `"HTTP"` | Listener protocol, `HTTP` or `HTTPS` |
+| `gatewayApi.gateway.listener.hostname` | string | `""` | Restrict the listener to one hostname. Empty accepts the HTTPRoute hostnames |
+| `gatewayApi.gateway.listener.tls.mode` | string | `"Terminate"` | TLS mode, only used when protocol is `HTTPS` |
+| `gatewayApi.gateway.listener.tls.certificateRefs` | array | `[]` | Certificate Secret references. Required when protocol is `HTTPS` with mode `Terminate` |
+| `gatewayApi.gateway.listener.tls.options` | object | `{}` | Implementation-specific TLS options |
+| `gatewayApi.gateway.listener.allowedRoutes` | object | `{namespaces: {from: Same}}` | Which namespaces may attach routes to the listener |
+| `gatewayApi.gateway.listeners` | array | `[]` | Fully override the generated listeners. When set, `listener` is ignored |
+| `gatewayApi.httpRoute.annotations` | object | `{}` | Additional HTTPRoute annotations |
+| `gatewayApi.httpRoute.labels` | object | `{}` | Additional HTTPRoute labels |
+| `gatewayApi.httpRoute.parentRefs` | array | `[]` | Gateways the HTTPRoutes attach to. Defaults to the chart-managed Gateway. Required when `gateway.create` is `false` |
+| `gatewayApi.httpRoute.filters` | array | `[]` | Filters applied to every generated rule |
+| `gatewayApi.httpRoute.timeouts` | object | `{}` | Timeouts applied to every generated rule, e.g. `request: 60s` |
+
+#### Example: path-based routing behind an Envoy Gateway with TLS
+
+```yaml
+gatewayApi:
+  enabled: true
+  hostname: airs-gw.example.com
+  hostBased: false
+  gatewayPath: /
+  mcpPath: /mcp
+  gateway:
+    gatewayClassName: envoy-gateway
+    listener:
+      name: https
+      port: 443
+      protocol: HTTPS
+      tls:
+        certificateRefs:
+          - name: airs-gw-tls
+```
+
+#### Example: host-based routing on a Gateway owned by the platform team
+
+```yaml
+gatewayApi:
+  enabled: true
+  hostname: airs-gw.example.com
+  mcpHostname: mcp.example.com
+  hostBased: true
+  gateway:
+    create: false
+  httpRoute:
+    parentRefs:
+      - name: shared-gateway
+        namespace: infra
+        sectionName: https
+```
 
 ### Resource Management
 

@@ -1,16 +1,52 @@
 AIRS Gateway has been deployed successfully.
 
 {{- if .Values.ingress.enabled }}
+{{- if eq (include "gateway.enabled" .) "true" }}
 
 Gateway URL:
   https://{{ .Values.ingress.hostname }}{{ if not .Values.ingress.hostBased }}{{ .Values.ingress.gatewayPath | default "/" }}{{ end }}
+{{- end }}
+{{- if eq (include "mcp.enabled" .) "true" }}
 
-{{- if and .Values.ingress.hostBased (include "mcp.enabled" .) }}
 MCP URL:
+{{- if .Values.ingress.hostBased }}
   https://{{ .Values.ingress.mcpHostname | default (printf "mcp.%s" .Values.ingress.hostname) }}/
-{{- else if and (not .Values.ingress.hostBased) (include "mcp.enabled" .) }}
-MCP URL:
+{{- else }}
   https://{{ .Values.ingress.hostname }}{{ .Values.ingress.mcpPath | default "/mcp" }}
+{{- end }}
+{{- end }}
+
+{{- else if .Values.gatewayApi.enabled }}
+{{- if eq (include "gateway.enabled" .) "true" }}
+
+Gateway URL:
+  https://{{ .Values.gatewayApi.hostname }}{{ if not .Values.gatewayApi.hostBased }}{{ .Values.gatewayApi.gatewayPath | default "/" }}{{ end }}
+{{- end }}
+{{- if eq (include "mcp.enabled" .) "true" }}
+
+MCP URL:
+{{- if .Values.gatewayApi.hostBased }}
+  https://{{ include "gatewayApi.mcpHostname" . }}/
+{{- else }}
+  https://{{ .Values.gatewayApi.hostname }}{{ .Values.gatewayApi.mcpPath | default "/mcp" }}
+{{- end }}
+{{- end }}
+
+{{- if (.Values.gatewayApi.gateway | default dict).create }}
+
+The address is assigned once the Gateway controller has provisioned it:
+
+  kubectl get gateway --namespace {{ (.Values.gatewayApi.gateway | default dict).namespace | default .Release.Namespace }} \
+    {{ include "gatewayApi.gatewayName" . }} \
+    -o jsonpath='{.status.addresses[0].value}'
+{{- else }}
+
+The HTTPRoutes attach to a Gateway managed outside this chart. Verify they were
+accepted by their parent Gateway:
+
+  kubectl get httproute --namespace {{ .Release.Namespace }} \
+    -l app.kubernetes.io/instance={{ .Release.Name }} \
+    -o wide
 {{- end }}
 
 {{- else if eq .Values.service.type "LoadBalancer" }}
@@ -33,6 +69,6 @@ Gateway is not exposed externally. To access it locally:
 
   http://127.0.0.1:{{ .Values.service.port }}/v1/health
 
-To expose externally, set service.type=LoadBalancer or ingress.enabled=true with ingress.hostname.
+To expose externally, set service.type=LoadBalancer, ingress.enabled=true with ingress.hostname, or gatewayApi.enabled=true with gatewayApi.hostname.
 {{- end }}
 
