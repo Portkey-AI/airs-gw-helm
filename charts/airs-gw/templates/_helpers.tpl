@@ -587,6 +587,168 @@ Gateway port when gateway is enabled, otherwise the MCP port.
 {{- end -}}
 
 {{/*
+=============================================================================
+Gateway API (gateway.networking.k8s.io) helpers
+=============================================================================
+*/}}
+
+{{/*
+gatewayApi.apiVersion
+→ API group/version used for the Gateway and HTTPRoute resources.
+*/}}
+{{- define "gatewayApi.apiVersion" -}}
+{{- .Values.gatewayApi.apiVersion | default "gateway.networking.k8s.io/v1" -}}
+{{- end -}}
+
+{{/*
+gatewayApi.gatewayName
+→ Name of the Gateway resource managed by this chart.
+*/}}
+{{- define "gatewayApi.gatewayName" -}}
+{{- (.Values.gatewayApi.gateway | default dict).name | default (include "airsgateway.fullname" .) -}}
+{{- end -}}
+
+{{/*
+gatewayApi.mcpHostname
+→ Hostname used for the MCP route in host-based mode.
+*/}}
+{{- define "gatewayApi.mcpHostname" -}}
+{{- .Values.gatewayApi.mcpHostname | default (printf "mcp.%s" .Values.gatewayApi.hostname) -}}
+{{- end -}}
+
+{{/*
+gatewayApi.validate
+→ Fail fast on unusable Gateway API configurations.
+*/}}
+{{- define "gatewayApi.validate" -}}
+{{- $gw := .Values.gatewayApi.gateway | default dict -}}
+{{- $route := .Values.gatewayApi.httpRoute | default dict -}}
+{{- if and (ne (include "gateway.enabled" .) "true") (ne (include "mcp.enabled" .) "true") }}
+{{- fail "gatewayApi.enabled is true but neither the gateway nor the MCP server is enabled. Set environment.data.SERVER_MODE to \"all\", \"\" (gateway), or \"mcp\"." }}
+{{- end }}
+{{- if and (not $gw.create) (empty $route.parentRefs) }}
+{{- fail "gatewayApi.gateway.create is false, so gatewayApi.httpRoute.parentRefs must list the existing Gateway(s) the HTTPRoutes attach to." }}
+{{- end }}
+{{- if .Values.gatewayApi.hostBased }}
+{{- if and (eq (include "gateway.enabled" .) "true") (empty .Values.gatewayApi.hostname) }}
+{{- fail "gatewayApi.hostname must be set when gatewayApi.hostBased is true. Set it, or use path-based routing with gatewayApi.hostBased=false." }}
+{{- end }}
+{{- if and (eq (include "mcp.enabled" .) "true") (empty .Values.gatewayApi.hostname) (empty .Values.gatewayApi.mcpHostname) }}
+{{- fail "gatewayApi.mcpHostname (or gatewayApi.hostname) must be set when gatewayApi.hostBased is true and the MCP server is enabled." }}
+{{- end }}
+{{- end }}
+{{- if and $gw.create (empty $gw.listeners) }}
+{{- $listener := $gw.listener | default dict -}}
+{{- $protocol := $listener.protocol | default "HTTP" -}}
+{{- if not (has $protocol (list "HTTP" "HTTPS")) }}
+{{- fail (printf "gatewayApi.gateway.listener.protocol must be HTTP or HTTPS for HTTPRoute attachment, got %q." $protocol) }}
+{{- end }}
+{{- if eq $protocol "HTTPS" }}
+{{- $tls := $listener.tls | default dict -}}
+{{- if and (eq ($tls.mode | default "Terminate") "Terminate") (empty $tls.certificateRefs) }}
+{{- fail "gatewayApi.gateway.listener.tls.certificateRefs must reference at least one Secret when the listener protocol is HTTPS with mode Terminate." }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end -}}
+
+{{/*
+gatewayApi.listeners
+→ Renders the Gateway listeners, either the user-supplied override or the
+  single listener built from gatewayApi.gateway.listener.
+*/}}
+{{- define "gatewayApi.listeners" -}}
+{{- $gw := .Values.gatewayApi.gateway | default dict -}}
+{{- if $gw.listeners -}}
+{{- toYaml $gw.listeners -}}
+{{- else -}}
+{{- $listener := $gw.listener | default dict -}}
+{{- $protocol := $listener.protocol | default "HTTP" -}}
+{{- $tls := $listener.tls | default dict -}}
+- name: {{ $listener.name | default "http" }}
+  port: {{ $listener.port | default 80 | int }}
+  protocol: {{ $protocol }}
+  {{- with $listener.hostname }}
+  hostname: {{ . | quote }}
+  {{- end }}
+  {{- if eq $protocol "HTTPS" }}
+  tls:
+    mode: {{ $tls.mode | default "Terminate" }}
+    {{- with $tls.certificateRefs }}
+    certificateRefs:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with $tls.options }}
+    options:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  {{- with $listener.allowedRoutes }}
+  allowedRoutes:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+gatewayApi.parentRefs
+→ Renders the parentRefs for the generated HTTPRoutes. Defaults to the Gateway
+  created by this chart unless gatewayApi.httpRoute.parentRefs is set.
+*/}}
+{{- define "gatewayApi.parentRefs" -}}
+{{- $gw := .Values.gatewayApi.gateway | default dict -}}
+{{- $parentRefs := (.Values.gatewayApi.httpRoute | default dict).parentRefs -}}
+{{- if $parentRefs -}}
+{{- toYaml $parentRefs -}}
+{{- else -}}
+- name: {{ include "gatewayApi.gatewayName" . }}
+  {{- with $gw.namespace }}
+  namespace: {{ . }}
+  {{- end }}
+  {{- if not $gw.listeners }}
+  {{- with ($gw.listener | default dict).name }}
+  sectionName: {{ . }}
+  {{- end }}
+  {{- end }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+gatewayApi.gatewayBackendRef
+→ backendRef entry for the gateway endpoint.
+*/}}
+{{- define "gatewayApi.gatewayBackendRef" -}}
+- name: {{ include "airsgateway.fullname" . }}
+  port: {{ .Values.service.port | int }}
+{{- end -}}
+
+{{/*
+gatewayApi.mcpBackendRef
+→ backendRef entry for the MCP endpoint. Mirrors the ingress template by
+  targeting the MCP port on the primary Service.
+*/}}
+{{- define "gatewayApi.mcpBackendRef" -}}
+- name: {{ include "airsgateway.fullname" . }}
+  port: {{ include "mcp.containerPort" . | int }}
+{{- end -}}
+
+{{/*
+gatewayApi.ruleExtras
+→ Shared filters/timeouts appended to every generated HTTPRoute rule.
+*/}}
+{{- define "gatewayApi.ruleExtras" -}}
+{{- $route := .Values.gatewayApi.httpRoute | default dict -}}
+{{- with $route.filters }}
+filters:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- with $route.timeouts }}
+timeouts:
+  {{- toYaml . | nindent 2 }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Milvus etcd labels
 */}}
 {{- define "milvus-etcd.labels" -}}

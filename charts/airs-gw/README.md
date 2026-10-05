@@ -50,6 +50,79 @@ on both the integration and the gateway deployment:
 - **AWS Bedrock** — See [Bedrock Assumed Role Configuration](./docs/Bedrock.md)
 - **Google Vertex AI** — See [Vertex AI Workload Identity](./docs/VertexAI.md)
 
+---
+
+## Exposing the Gateway
+
+The chart exposes two endpoints: the **gateway** (`service.port`, default `8787`) and
+the **MCP server** (`MCP_PORT`, default `8788`). Which of them get routed follows
+`environment.data.SERVER_MODE` — `all` routes both, `""` the gateway only, `mcp` the
+MCP server only.
+
+Either an **Ingress** or the **Gateway API** can front them, and both support the same
+two routing layouts:
+
+| Layout | Values | Result |
+|---|---|---|
+| Path-based *(default)* | `hostBased: false` | One hostname — gateway on `gatewayPath` (`/`), MCP on `mcpPath` (`/mcp`) |
+| Host-based | `hostBased: true` | Separate hostnames — `hostname` for the gateway, `mcpHostname` (defaults to `mcp.{hostname}`) for MCP |
+
+### Ingress
+
+```yaml
+ingress:
+  enabled: true
+  hostname: airs-gw.example.com
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - airs-gw.example.com
+      secretName: airs-gw-tls
+```
+
+### Gateway API
+
+Requires the [Gateway API](https://gateway-api.sigs.k8s.io/) CRDs and a controller
+(Istio, Envoy Gateway, NGINX Gateway Fabric, GKE Gateway, Kong, ...) installed in the
+cluster. Renders a `Gateway` plus one `HTTPRoute` per enabled endpoint — named after
+the release, with the MCP route suffixed `-mcp`.
+
+```yaml
+gatewayApi:
+  enabled: true
+  hostname: airs-gw.example.com
+  gateway:
+    gatewayClassName: envoy-gateway
+    listener:
+      name: https
+      port: 443
+      protocol: HTTPS
+      tls:
+        certificateRefs:
+          - name: airs-gw-tls
+```
+
+To attach the routes to a `Gateway` owned by another team instead of creating one:
+
+```yaml
+gatewayApi:
+  enabled: true
+  hostname: airs-gw.example.com
+  gateway:
+    create: false
+  httpRoute:
+    parentRefs:
+      - name: shared-gateway
+        namespace: infra
+        sectionName: https
+```
+
+On older Gateway API installs, set `gatewayApi.apiVersion: gateway.networking.k8s.io/v1beta1`.
+
+See [Ingress Configuration](./docs/Configuration.md#ingress-configuration) and
+[Gateway API Configuration](./docs/Configuration.md#gateway-api-configuration) for the
+full value reference.
+
 ## Data Service (Optional)
 
 Enable data service for 
@@ -82,6 +155,7 @@ helm uninstall airs-gw --namespace airs-gw
 - Helm repository: `https://portkey-ai.github.io/airs-gw-helm`
 - [Artifact Hub (Portkey AI)](https://artifacthub.io/packages/search?org=portkey-ai&sort=relevance&page=1)
 - [External Redis / Cache Store configuration](./docs/Redis.md) — configure AWS ElastiCache, Azure Managed Redis, or GCP Memorystore as the cache store
+- [Ingress and Gateway API configuration](./docs/Configuration.md#ingress-configuration) — expose the gateway and MCP endpoints via Ingress or Gateway API
 - [All available configuration options](./docs/Configuration.md) — full reference for all Helm chart values
 - [Deployment guide](https://portkey.ai/docs/self-hosting/hybrid-deployments) — end-to-end steps for deploying on EKS, AKS, or GKE
 

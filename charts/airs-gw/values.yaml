@@ -198,6 +198,93 @@ ingress:
   # Defaults to "/" if not specified
   gatewayPath: "/"
 
+# Gateway API (gateway.networking.k8s.io) support.
+# Alternative to `ingress` for clusters running a Gateway API implementation
+# (Istio, Envoy Gateway, NGINX Gateway Fabric, GKE Gateway, Kong, ...).
+# Routing semantics mirror the `ingress` block above.
+gatewayApi:
+  enabled: false
+  # API group/version of the generated Gateway and HTTPRoute resources.
+  # Use "gateway.networking.k8s.io/v1beta1" on older Gateway API installs.
+  apiVersion: gateway.networking.k8s.io/v1
+  hostname: ""
+  # Set to true for host-based routing (separate hostnames for gateway and MCP)
+  # Set to false for path-based routing (same hostname, different paths)
+  hostBased: false
+  # MCP hostname (only used when hostBased is true)
+  # Defaults to "mcp.{hostname}" if not specified
+  mcpHostname: ""
+  # MCP path (only used when hostBased is false)
+  # Defaults to "/mcp" if not specified
+  mcpPath: "/mcp"
+  # Gateway path (only used when hostBased is false)
+  # Defaults to "/" if not specified
+  gatewayPath: "/"
+
+  gateway:
+    # Create a Gateway resource. Set to false to attach the generated
+    # HTTPRoutes to a Gateway managed outside of this chart, in which case
+    # gatewayApi.httpRoute.parentRefs must be provided.
+    create: true
+    # Name of the Gateway. Defaults to the release fullname when empty.
+    name: ""
+    # Namespace of the Gateway. Defaults to the release namespace when empty.
+    namespace: ""
+    # GatewayClass to use, e.g. istio, envoy-gateway, nginx, gke-l7-global-external-managed
+    gatewayClassName: "istio"
+    annotations: {}
+    labels: {}
+    # Static addresses requested for the Gateway, e.g.
+    # - type: IPAddress
+    #   value: 10.0.0.10
+    addresses: []
+    # Implementation-specific infrastructure settings (labels, annotations,
+    # parametersRef) for the provisioned load balancer.
+    infrastructure: {}
+    # Listener the generated HTTPRoutes attach to.
+    listener:
+      name: http
+      port: 80
+      # HTTP or HTTPS
+      protocol: HTTP
+      # Restrict the listener to a single hostname. Leave empty to accept the
+      # hostnames declared on the HTTPRoutes.
+      hostname: ""
+      # Only used when protocol is HTTPS
+      tls:
+        mode: Terminate
+        # certificateRefs:
+        #   - name: airs-gw-tls
+        certificateRefs: []
+        options: {}
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # Fully override the generated listeners. When set, `listener` is ignored
+    # and gatewayApi.httpRoute.parentRefs should pin the right sectionName.
+    listeners: []
+
+  httpRoute:
+    annotations: {}
+    labels: {}
+    # Gateways the HTTPRoutes attach to. Defaults to the Gateway above.
+    # Required when gateway.create is false, e.g.
+    # - name: shared-gateway
+    #   namespace: infra
+    #   sectionName: https
+    parentRefs: []
+    # Filters applied to every generated rule, e.g. request header mutation
+    # - type: RequestHeaderModifier
+    #   requestHeaderModifier:
+    #     set:
+    #       - name: x-forwarded-proto
+    #         value: https
+    filters: []
+    # Timeouts applied to every generated rule, e.g.
+    # request: 60s
+    # backendRequest: 60s
+    timeouts: {}
+
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
